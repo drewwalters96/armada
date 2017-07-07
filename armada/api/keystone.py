@@ -18,15 +18,10 @@ from armada.conf import default
 # Required Oslo configuration setup
 default.register_opts()
 
-from armada import Apply
-from tiller import Release, Status
-
-import falcon
-
 from oslo_config import cfg
 from oslo_log import log as logging
 
-from keystonemiddleware import auth_token
+import falcon
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
@@ -34,19 +29,3 @@ DOMAIN = "armada"
 
 logging.register_options(CONF)
 logging.setup(CONF, DOMAIN)
-
-# Build API
-app = falcon.API()
-
-# Configure API routing
-url_routes = (
-    ('/tiller/status', Status()),
-    ('/tiller/releases', Release()),
-    ('/armada/apply/', Apply())
-)
-
-for route, service in url_routes:
-    app.add_route(route, service)
-
-# Wrap in auth middleware
-api = auth_token.AuthProtocol(app, {})

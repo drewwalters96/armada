@@ -13,12 +13,17 @@
 # limitations under the License.
 #
 
+from keystonemiddleware import auth_token
 import falcon
 
 class AuthMiddleware(object):
     def process_request(self, req, resp):
-        token = req.get_header('X-Auth-Token')
-        self.validate_token(token)
+        auth_token.AuthProtocol(app, conf)
+
+
+
+        # token = req.get_header('X-Auth-Token')
+        # self.validate_token(token)
 
     def validate_token(self, token):
         if token is None:
