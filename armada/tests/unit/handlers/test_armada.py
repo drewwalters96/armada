@@ -341,12 +341,9 @@ class ArmadaHandlerTestCase(base.ArmadaTestCase):
         self._test_pre_flight_ops(armada_obj)
 
         armada_obj.post_flight_ops()
-
-        for group in armada_obj.manifest['data']['chart_groups']:
-            for counter, chart in enumerate(
-                    group.get(const.KEYWORD_DATA).get(const.KEYWORD_CHARTS)):
-                if chart.get(
-                        const.KEYWORD_DATA).get('source').get('type') == 'git':
+        charts = armada_obj.manifest_helper.get_charts()
+        for counter, chart in enumerate(charts):
+            if chart.get('source').get('type') == 'git':
                     mock_source.source_cleanup.assert_called_with(
                         CHART_SOURCES[counter][0])
 
@@ -378,8 +375,8 @@ class ArmadaHandlerTestCase(base.ArmadaTestCase):
             armada_obj = armada.Armada(yaml_documents, m_tiller)
             armada_obj.chart_deploy.get_diff = mock.Mock()
 
-            cg = armada_obj.manifest['data']['chart_groups'][0]
-            chart_group = cg['data']
+            cg = armada_obj.manifest_helper.get_chart_group_documents()[0]
+            chart_group = cg.get('data')
             charts = chart_group['chart_group']
             cg_test_all_charts = chart_group.get('test_charts')
 

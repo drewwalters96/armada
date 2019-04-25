@@ -125,19 +125,14 @@ class DeleteChartManifest(CliAction):
             with open(self.manifest) as f:
                 documents = list(yaml.safe_load_all(f.read()))
             try:
-                armada_obj = Manifest(documents).get_manifest()
-                prefix = armada_obj.get(const.KEYWORD_DATA).get(
-                    const.KEYWORD_PREFIX)
+                manifest_helper = ManifestHelper(documents)
+                prefix = manifest_helper.get_release_prefix()
 
-                for group in armada_obj.get(const.KEYWORD_DATA).get(
-                        const.KEYWORD_GROUPS):
-                    for ch in group.get(const.KEYWORD_DATA).get(
-                            const.KEYWORD_CHARTS):
-                        chart = ch.get(const.KEYWORD_DATA)
-                        release_name = release_prefixer(
-                            prefix, chart.get('release'))
-                        if release_name in known_release_names:
-                            target_deletes.append((chart, release_name))
+                for chart in manifest_helper.get_charts():
+                    release_name = release_prefixer(prefix,
+                                                    chart.get('release'))
+                    if release_name in known_release_names:
+                        target_deletes.append((chart_data, release_name))
             except yaml.YAMLError as e:
                 mark = e.problem_mark
                 self.logger.info(

@@ -24,7 +24,7 @@ from armada.exceptions import source_exceptions
 from armada.exceptions import tiller_exceptions
 from armada.exceptions import validate_exceptions
 from armada.handlers.chart_deploy import ChartDeploy
-from armada.handlers.manifest import Manifest
+from armada.handlers.manifest import ManifestHelper
 from armada.handlers.override import Override
 from armada.utils.release import release_prefixer
 from armada.utils import source
@@ -86,8 +86,9 @@ class Armada(object):
         except (validate_exceptions.InvalidManifestException,
                 override_exceptions.InvalidOverrideValueException):
             raise
-        self.manifest = Manifest(
-            self.documents, target_manifest=target_manifest).get_manifest()
+        self.manifest_helper = ManifestHelper(
+            self.documents, target_manifest=target_manifest)
+        self.manifest = self.manifest_helper.get_manifest()
         self.chart_cache = {}
         self.chart_deploy = ChartDeploy(
             disable_update_pre, disable_update_post, self.dry_run,
@@ -104,14 +105,11 @@ class Armada(object):
             raise tiller_exceptions.TillerServicesUnavailableException()
 
         # Clone the chart sources
-        manifest_data = self.manifest.get(const.KEYWORD_DATA, {})
-        for group in manifest_data.get(const.KEYWORD_GROUPS, []):
-            for ch in group.get(const.KEYWORD_DATA).get(
-                    const.KEYWORD_CHARTS, []):
-                self.get_chart(ch)
+        for chart in self.manifest_helper.get_chart_documents():
+            self.get_chart(chart)
 
-    def get_chart(self, ch):
-        chart = ch.get(const.KEYWORD_DATA)
+    def get_chart(self, chart_document):
+        chart = chart_document.get(const.KEYWORD_DATA)
         chart_source = chart.get('source', {})
         location = chart_source.get('location')
         ct_type = chart_source.get('type')
@@ -159,10 +157,10 @@ class Armada(object):
                 self.chart_cache[source_key] = repo_dir
             chart['source_dir'] = (self.chart_cache.get(source_key), subpath)
         else:
-            name = chart['metadata']['name']
+            name = chart_document['metadata']['name']
             raise source_exceptions.ChartSourceException(ct_type, name)
 
-        for dep in ch.get(const.KEYWORD_DATA, {}).get('dependencies', []):
+        for dep in chart.get('dependencies', []):
             self.get_chart(dep)
 
     def sync(self):
@@ -186,12 +184,11 @@ class Armada(object):
 
         known_releases = self.tiller.list_releases()
 
-        manifest_data = self.manifest.get(const.KEYWORD_DATA, {})
-        prefix = manifest_data.get(const.KEYWORD_PREFIX)
+        prefix = self.manifest_helper.get_release_prefix()
 
-        for cg in manifest_data.get(const.KEYWORD_GROUPS, []):
-            chartgroup = cg.get(const.KEYWORD_DATA)
-            cg_name = cg.get('metadata').get('name')
+        for doc in self.manifest_helper.get_chart_group_documents():
+            chartgroup = doc.get(const.KEYWORD_DATA)
+            cg_name = doc.get('metadata').get('name')
             cg_desc = chartgroup.get('description', '<missing description>')
             cg_sequenced = chartgroup.get('sequenced',
                                           False) or self.force_wait
@@ -259,9 +256,8 @@ class Armada(object):
         self.post_flight_ops()
 
         if self.enable_chart_cleanup:
-            self._chart_cleanup(
-                prefix,
-                self.manifest[const.KEYWORD_DATA][const.KEYWORD_GROUPS], msg)
+            chart_groups = self.manifest_helper.get_chart_group_documents()
+            self._chart_cleanup(prefix, chart_groups, msg)
 
         LOG.info('Done applying manifest.')
         return msg

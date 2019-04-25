@@ -136,7 +136,7 @@ class Manifest(object):
             details='Could not find {} named "{}"'.format(
                 schema.TYPE_CHARTGROUP, name))
 
-    def build_chart_deps(self, chart):
+    def _build_chart_deps(self, chart):
         """Recursively build chart dependencies for ``chart``.
 
         :param dict chart: The chart whose dependencies will be recursively
@@ -153,7 +153,7 @@ class Manifest(object):
                 if isinstance(dep, dict):
                     continue
                 chart_dep = self.find_chart_document(dep)
-                self.build_chart_deps(chart_dep)
+                self._build_chart_deps(chart_dep)
                 chart[const.KEYWORD_DATA]['dependencies'][iter] = chart_dep
         except Exception:
             raise exceptions.ChartDependencyException(
@@ -163,7 +163,7 @@ class Manifest(object):
         else:
             return chart
 
-    def build_chart_group(self, chart_group):
+    def _build_chart_group(self, chart_group):
         """Builds the chart dependencies for`charts`chart group``.
 
         :param dict chart_group: The chart_group whose dependencies
@@ -181,7 +181,7 @@ class Manifest(object):
                 if isinstance(chart, dict):
                     continue
                 chart_object = self.find_chart_document(chart)
-                self.build_chart_deps(chart_object)
+                self._build_chart_deps(chart_object)
                 chart_group[const.KEYWORD_DATA][const.KEYWORD_CHARTS][iter] = \
                     chart_object
         except exceptions.ManifestException:
@@ -192,7 +192,7 @@ class Manifest(object):
 
         return chart_group
 
-    def build_armada_manifest(self):
+    def _build_armada_manifest(self):
         """Builds the Armada manifest while pulling out data
         from the chart_group.
 
@@ -207,7 +207,7 @@ class Manifest(object):
             if isinstance(group, dict):
                 continue
             chart_grp = self.find_chart_group_document(group)
-            self.build_chart_group(chart_grp)
+            self._build_chart_group(chart_grp)
 
             self.manifest[const.KEYWORD_DATA][const.KEYWORD_GROUPS][iter] = \
                 chart_grp
@@ -220,6 +220,71 @@ class Manifest(object):
         :returns: The Armada manifest.
         :rtype: dict
         """
-        self.build_armada_manifest()
+        self._build_armada_manifest()
 
         return self.manifest
+
+class ManifestHelper(Manifest):
+
+    def __init__(self, documents, target_manifest=None):
+        super(ManifestHelper, self).__init__(documents, target_manifest)
+
+    def get_chart_group_documents(self):
+        """Retrieve a list of documents corresponding to the chart groups
+        listed in the selected/targeted manifest (self.manifest).
+
+        A chart group document contains a metadata and data section.
+
+        :returns: List of chart group documents
+        :rtype: list
+        """
+        return self.manifest.get(const.KEYWORD_DATA).get(const.KEYWORD_GROUPS)
+
+    def get_chart_groups(self):
+        """Retrieve a list of chart group dictionaries corresponding to the
+        chart groups listed in the selected/targeted manifest (self.manifest).
+
+        A chart group dictionary is the data section of a chart group document.
+
+        :returns: List of chart groups dictionaries
+        :rtype: list
+        """
+        group_names = self.get_chart_group_documents()
+        return [group.get(const.KEYWORD_DATA) for group in group_names]
+
+    def get_chart_documents(self):
+        """Retrieve a list of documents corresponding to the charts listed in
+        all chart groups listed in the selected/targeted manifest
+        (self.manifest).
+
+        A chart document contains a metadata and data section.
+
+        :returns: List of chart documents
+        :rtype: list
+        """
+        charts = list()
+        for group in self.get_chart_groups():
+            charts.extend(group.get(const.KEYWORD_CHARTS))
+
+        return charts
+
+    def get_charts(self):
+        """Retrieve a list of chart dictionaries corresponding to the charts
+        listed in all chart groups listed in the selected/targeted manifest.
+
+        A chart dictionary is the data section of a chart document.
+
+        :returns: List of charts that belong to the manifest.
+        :rtype: list
+        """
+        chart_documents = self.get_chart_documents()
+        return [chart.get(const.KEYWORD_DATA) for chart in chart_documents]
+
+    def get_release_prefix(self):
+        """Retrieve the release prefix of the selected/targeted manifest.
+
+        :returns: Release prefix
+        :rtype: str
+        """
+        manifest_data = self.manifest.get(const.KEYWORD_DATA)
+        return manifest_data.get(const.KEYWORD_PREFIX)

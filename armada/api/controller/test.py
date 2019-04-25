@@ -20,9 +20,8 @@ from oslo_config import cfg
 
 from armada import api
 from armada.common import policy
-from armada import const
 from armada.handlers.lock import lock_and_thread, LockException
-from armada.handlers.manifest import Manifest
+from armada.handlers.manifest import ManifestHelper
 from armada.handlers.test import Test
 from armada.utils.release import release_prefixer
 from armada.utils import validate
@@ -130,40 +129,34 @@ class TestReleasesManifestController(api.BaseResource):
         if not is_valid:
             return
 
-        armada_obj = Manifest(
-            documents, target_manifest=target_manifest).get_manifest()
-
-        prefix = armada_obj[const.KEYWORD_DATA][const.KEYWORD_PREFIX]
         known_releases = [release[0] for release in tiller.list_charts()]
 
+        manifest_helper = ManifestHelper(documents, target_manifest=target_manifest)
+        prefix = manifest_helper.get_release_prefix()
+
         message = {'tests': {'passed': [], 'skipped': [], 'failed': []}}
+        for chart in manifest_helper.get_charts():
+            release_name = release_prefixer(prefix, chart.get('release'))
+            if release_name in known_releases:
+                cleanup = req.get_param_as_bool('cleanup')
+                enable_all = req.get_param_as_bool('enable_all')
+                cg_test_charts = group.get('test_charts')
 
-        for group in armada_obj.get(const.KEYWORD_DATA).get(
-                const.KEYWORD_GROUPS):
-            for ch in group.get(const.KEYWORD_CHARTS):
-                chart = ch['chart']
+                test_handler = Test(
+                    chart,
+                    release_name,
+                    tiller,
+                    cg_test_charts=cg_test_charts,
+                    cleanup=cleanup,
+                    enable_all=enable_all)
 
-                release_name = release_prefixer(prefix, chart.get('release'))
-                if release_name in known_releases:
-                    cleanup = req.get_param_as_bool('cleanup')
-                    enable_all = req.get_param_as_bool('enable_all')
-                    cg_test_charts = group.get('test_charts')
+                if test_handler.test_enabled:
+                    success = test_handler.test_release_for_success()
 
-                    test_handler = Test(
-                        chart,
-                        release_name,
-                        tiller,
-                        cg_test_charts=cg_test_charts,
-                        cleanup=cleanup,
-                        enable_all=enable_all)
-
-                    if test_handler.test_enabled:
-                        success = test_handler.test_release_for_success()
-
-                        if success:
-                            message['test']['passed'].append(release_name)
-                        else:
-                            message['test']['failed'].append(release_name)
+                    if success:
+                        message['test']['passed'].append(release_name)
+                    else:
+                        message['test']['failed'].append(release_name)
                 else:
                     self.logger.info('Release %s not found - SKIPPING',
                                      release_name)

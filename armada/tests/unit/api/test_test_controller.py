@@ -30,7 +30,7 @@ from armada.tests.unit.api import base
                    test.TestReleasesManifestController.handle.__wrapped__)
 class TestReleasesManifestControllerTest(base.BaseControllerTest):
 
-    @mock.patch.object(test, 'Manifest')
+    @mock.patch.object(test, 'ManifestHelper')
     @mock.patch.object(api, 'Tiller')
     def test_test_controller_with_manifest(self, mock_tiller, mock_manifest):
         rules = {'armada:test_manifest': '@'}
@@ -127,7 +127,7 @@ class TestReleasesReleaseNameControllerTest(base.BaseControllerTest):
                    test.TestReleasesManifestController.handle.__wrapped__)
 class TestReleasesManifestControllerNegativeTest(base.BaseControllerTest):
 
-    @mock.patch.object(test, 'Manifest')
+    @mock.patch.object(test, 'ManifestHelper')
     @mock.patch.object(api, 'Tiller')
     @mock.patch.object(test.Test, 'test_release_for_success')
     def test_test_controller_tiller_exc_returns_500(
@@ -141,7 +141,7 @@ class TestReleasesManifestControllerNegativeTest(base.BaseControllerTest):
         resp = self.app.simulate_post('/api/v1.0/tests')
         self.assertEqual(500, resp.status_code)
 
-    @mock.patch.object(test, 'Manifest')
+    @mock.patch.object(test, 'ManifestHelper')
     @mock.patch.object(api, 'Tiller')
     def test_test_controller_validation_failure_returns_400(
             self, mock_tiller, mock_manifest):

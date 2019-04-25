@@ -18,9 +18,8 @@ import click
 from oslo_config import cfg
 
 from armada.cli import CliAction
-from armada import const
 from armada.handlers.lock import lock_and_thread
-from armada.handlers.manifest import Manifest
+from armada.handlers.manifest import ManifestHelper
 from armada.handlers.test import Test
 from armada.handlers.tiller import Tiller
 from armada.utils.release import release_prefixer
@@ -144,29 +143,26 @@ class TestChartManifest(CliAction):
         if self.file:
             if not self.ctx.obj.get('api', False):
                 documents = list(yaml.safe_load_all(open(self.file).read()))
-                armada_obj = Manifest(
+                manifest_helper = ManifestHelper(
                     documents,
-                    target_manifest=self.target_manifest).get_manifest()
-                prefix = armada_obj.get(const.KEYWORD_DATA).get(
-                    const.KEYWORD_PREFIX)
+                    target_manifest=self.target_manifest)
 
-                for group in armada_obj.get(const.KEYWORD_DATA).get(
-                        const.KEYWORD_GROUPS):
-                    for ch in group.get(const.KEYWORD_CHARTS):
-                        chart = ch['chart']
+                release_prefix = manifest_helper.get_release_prefix()
+                for chart in manifest_helper.get_charts():
+                    release_name = release_prefixer(release_prefix,
+                                                    chart.get('release'))
 
-                        release_name = release_prefixer(
-                            prefix, chart.get('release'))
-                        if release_name in known_release_names:
-                            test_handler = Test(
-                                chart,
-                                release_name,
-                                tiller,
-                                cleanup=self.cleanup,
-                                enable_all=self.enable_all)
+                    # Test if release is deployed
+                    if release_name in known_release_names:
+                        test_handler = Test(
+                            chart,
+                            release_name,
+                            tiller,
+                            cleanup=self.cleanup,
+                            enable_all=self.enable_all)
 
-                            if test_handler.test_enabled:
-                                test_handler.test_release_for_success()
+                        if test_handler.test_enabled:
+                            test_handler.test_release_for_success()
                         else:
                             self.logger.info('Release %s not found - SKIPPING',
                                              release_name)

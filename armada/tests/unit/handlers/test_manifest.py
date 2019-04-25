@@ -183,10 +183,10 @@ class ManifestTestCase(testtools.TestCase):
         self.assertIsInstance(kis_chart, dict)
         self.assertEqual(self.documents[-4], kis_chart)
 
-    def test_verify_build_armada_manifest(self):
+    def test_verify__build_armada_manifest(self):
         armada_manifest = manifest.Manifest(self.documents)
 
-        built_armada_manifest = armada_manifest.build_armada_manifest()
+        built_armada_manifest = armada_manifest._build_armada_manifest()
 
         self.assertIsNotNone(built_armada_manifest)
         self.assertIsInstance(built_armada_manifest, dict)
@@ -205,20 +205,20 @@ class ManifestTestCase(testtools.TestCase):
         self.assertEqual(openstack_keystone_chart_group,
                          built_armada_manifest['data']['chart_groups'][1])
 
-    def test_verify_build_chart_group_deps(self):
+    def test_verify__build_chart_group_deps(self):
         armada_manifest = manifest.Manifest(self.documents)
         # building the deps for openstack-keystone chart group
         chart_group = armada_manifest.find_chart_group_document(
             'openstack-keystone')
         openstack_keystone_chart_group_deps = armada_manifest. \
-            build_chart_group(chart_group)
+            _build_chart_group(chart_group)
         openstack_keystone_chart_group_deps_dep_added = \
             openstack_keystone_chart_group_deps[
                 'data']['chart_group'][0]['data']['dependencies']
 
         # keystone chart dependencies
         keystone_chart = armada_manifest.find_chart_document('keystone')
-        keystone_chart_with_deps = armada_manifest.build_chart_deps(
+        keystone_chart_with_deps = armada_manifest._build_chart_deps(
             keystone_chart)
         keystone_dependencies = keystone_chart_with_deps['data'][
             'dependencies']
@@ -230,20 +230,20 @@ class ManifestTestCase(testtools.TestCase):
         chart_group = armada_manifest.find_chart_group_document(
             'keystone-infra-services')
         openstack_keystone_chart_group_deps = armada_manifest. \
-            build_chart_group(chart_group)
+            _build_chart_group(chart_group)
         keystone_infra_services_dep_added = \
             openstack_keystone_chart_group_deps[
                 'data']['chart_group'][0]['data']['dependencies']
 
         # building mariadb chart dependencies
         mariadb_chart = armada_manifest.find_chart_document('mariadb')
-        mariadb_chart_with_deps = armada_manifest.build_chart_deps(
+        mariadb_chart_with_deps = armada_manifest._build_chart_deps(
             mariadb_chart)
         mariadb_dependencies = mariadb_chart_with_deps['data']['dependencies']
 
         # building memcached chart dependencies
         memcached_chart = armada_manifest.find_chart_document('memcached')
-        memcached_chart_with_deps = armada_manifest.build_chart_deps(
+        memcached_chart_with_deps = armada_manifest._build_chart_deps(
             memcached_chart)
         memcached_dependencies = memcached_chart_with_deps['data'][
             'dependencies']
@@ -253,14 +253,14 @@ class ManifestTestCase(testtools.TestCase):
         self.assertEqual(keystone_infra_services_dep_added[0],
                          memcached_dependencies[0])
 
-    def test_verify_build_chart_deps(self):
+    def test_verify__build_chart_deps(self):
         armada_manifest = manifest.Manifest(self.documents)
 
         # helm-toolkit chart
         helm_toolkit_chart = armada_manifest.find_chart_document(
             'helm-toolkit')
         helm_toolkit_original_dependency = helm_toolkit_chart.get('data')
-        helm_toolkit_chart_with_deps = armada_manifest.build_chart_deps(
+        helm_toolkit_chart_with_deps = armada_manifest._build_chart_deps(
             helm_toolkit_chart).get('data')
 
         # since not dependent on other charts, the original and modified
@@ -275,7 +275,7 @@ class ManifestTestCase(testtools.TestCase):
         # keystone chart dependencies
         keystone_chart = armada_manifest.find_chart_document('keystone')
         original_keystone_chart = copy.deepcopy(keystone_chart)
-        keystone_chart_with_deps = armada_manifest.build_chart_deps(
+        keystone_chart_with_deps = armada_manifest._build_chart_deps(
             keystone_chart)
 
         self.assertNotEqual(original_keystone_chart, keystone_chart_with_deps)
@@ -293,7 +293,7 @@ class ManifestTestCase(testtools.TestCase):
         # mariadb chart dependencies
         mariadb_chart = armada_manifest.find_chart_document('mariadb')
         original_mariadb_chart = copy.deepcopy(mariadb_chart)
-        mariadb_chart_with_deps = armada_manifest.build_chart_deps(
+        mariadb_chart_with_deps = armada_manifest._build_chart_deps(
             mariadb_chart)
 
         self.assertNotEqual(original_mariadb_chart, mariadb_chart_with_deps)
@@ -310,7 +310,7 @@ class ManifestTestCase(testtools.TestCase):
         # memcached chart dependencies
         memcached_chart = armada_manifest.find_chart_document('memcached')
         original_memcached_chart = copy.deepcopy(memcached_chart)
-        memcached_chart_with_deps = armada_manifest.build_chart_deps(
+        memcached_chart_with_deps = armada_manifest._build_chart_deps(
             memcached_chart)
 
         self.assertNotEqual(original_memcached_chart,
@@ -397,7 +397,7 @@ class ManifestNegativeTestCase(testtools.TestCase):
                                 armada_manifest.find_chart_group_document,
                                 'invalid')
 
-    def test_build_chart_deps_with_missing_dependency_fails(self):
+    def test__build_chart_deps_with_missing_dependency_fails(self):
         """Validate that attempting to build a chart that points to
         a missing dependency fails.
         """
@@ -405,7 +405,7 @@ class ManifestNegativeTestCase(testtools.TestCase):
         valid, details = validate.validate_armada_documents(self.documents)
         self.assertFalse(valid)
 
-    def test_build_chart_group_with_missing_chart_grp_fails(self):
+    def test__build_chart_group_with_missing_chart_grp_fails(self):
         """Validate that attempting to build a chart group document with
         missing chart group fails.
         """
@@ -413,7 +413,7 @@ class ManifestNegativeTestCase(testtools.TestCase):
         valid, details = validate.validate_armada_documents(self.documents)
         self.assertFalse(valid)
 
-    def test_build_armada_manifest_with_missing_chart_grps_fails(self):
+    def test__build_armada_manifest_with_missing_chart_grps_fails(self):
         """Validate that attempting to build a manifest with missing
         chart groups fails.
         """
